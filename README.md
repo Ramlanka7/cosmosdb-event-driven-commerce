@@ -1,16 +1,5 @@
 # 🚀 Global Event-Driven Commerce Platform
-
-## 📌 Repository Name (Recommended)
-
-👉 **cosmosdb-event-driven-commerce**
-
-Alternative options:
-
-* cosmosdb-distributed-commerce
-* dotnet-cosmos-event-platform
-* cloud-native-commerce-cosmos
-
----
+\---
 
 # 📖 Overview
 
