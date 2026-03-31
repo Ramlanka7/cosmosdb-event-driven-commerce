@@ -1,5 +1,41 @@
 # 🚀 Global Event-Driven Commerce Platform
 
+## Cosmos Bootstrapper
+
+The repository now includes a small .NET 8 bootstrapper at `src/CosmosBootstrapper` to provision the baseline Azure Cosmos DB resources.
+
+The bootstrapper is structured as a hosted application with:
+
+- configuration and startup validation
+- a dedicated provisioning service
+- a container catalog for required resources
+- a hosted entrypoint that runs once and exits cleanly
+
+### What It Creates
+
+- `order-events` with partition key `/aggregateId`
+- `orders-read` with partition key `/userId`
+- `users` with partition key `/userId`
+- `recommendations` with partition key `/userId`
+
+### Configuration
+
+- Non-secret defaults live in `src/CosmosBootstrapper/appsettings.json`
+- Local secrets live in `src/CosmosBootstrapper/appsettings.Development.json`
+- `appsettings.Development.json` is gitignored
+
+### Run It
+
+```bash
+dotnet run --project src/CosmosBootstrapper
+```
+
+Set `DOTNET_ENVIRONMENT=Development` when you want the bootstrapper to load `appsettings.Development.json` for local emulator or local account settings.
+
+Set `CosmosDb:VerifyWrite` to `true` if you also want the bootstrapper to upsert and read back a sample document in the `users` container.
+
+Set `CosmosDb:ResetDatabaseOnProvision` to `true` for practice environments when you want the bootstrapper to delete and recreate the database with shared throughput before creating containers.
+
 ## 📌 Repository Name (Recommended)
 
 👉 **cosmosdb-event-driven-commerce**
