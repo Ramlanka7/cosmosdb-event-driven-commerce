@@ -100,18 +100,44 @@ internal sealed class CosmosProvisioningService(
 
     private async Task VerifyWriteAsync(Database database, CancellationToken cancellationToken)
     {
-        Container usersContainer = database.GetContainer("users");
-        BootstrapVerificationUser user = new()
+        const string aggregateId = "bootstrap-order";
+        Container orderEventsContainer = database.GetContainer("order-events");
+        BootstrapVerificationEventDocument orderCreated = new()
         {
-            id = "bootstrap-user",
-            userId = "bootstrap-user",
-            displayName = "Bootstrap Verification User",
-            createdAtUtc = DateTime.UtcNow
+            id = $"{aggregateId}:0000000001",
+            documentType = "event",
+            aggregateId = aggregateId,
+            eventType = "order-created",
+            eventVersion = 1,
+            sequenceNumber = 1,
+            occurredAtUtc = DateTime.UtcNow,
+            schemaVersion = 1,
+            correlationId = "bootstrap-provisioning",
+            causationId = "bootstrap-provisioning",
+            payload = new BootstrapVerificationOrderCreated
+            {
+                orderId = aggregateId,
+                userId = "bootstrap-user",
+                occurredAtUtc = DateTime.UtcNow,
+                items =
+                [
+                    new BootstrapVerificationOrderItem
+                    {
+                        sku = "bootstrap-sku",
+                        quantity = 1,
+                        unitPrice = 9.99m
+                    }
+                ]
+            }
         };
 
-        await usersContainer.UpsertItemAsync(user, new PartitionKey(user.userId), cancellationToken: cancellationToken);
-        ItemResponse<BootstrapVerificationUser> response = await usersContainer.ReadItemAsync<BootstrapVerificationUser>(user.id, new PartitionKey(user.userId), cancellationToken: cancellationToken);
+        await orderEventsContainer.UpsertItemAsync(orderCreated, new PartitionKey(orderCreated.aggregateId), cancellationToken: cancellationToken);
+        ItemResponse<BootstrapVerificationEventDocument> response = await orderEventsContainer.ReadItemAsync<BootstrapVerificationEventDocument>(orderCreated.id, new PartitionKey(orderCreated.aggregateId), cancellationToken: cancellationToken);
 
-        logger.LogInformation("Write verification succeeded for {UserId} with request charge {RequestCharge:F2} RU.", response.Resource.userId, response.RequestCharge);
+        logger.LogInformation(
+            "Write verification succeeded for event stream {AggregateId} at sequence {SequenceNumber} with request charge {RequestCharge:F2} RU.",
+            response.Resource.aggregateId,
+            response.Resource.sequenceNumber,
+            response.RequestCharge);
     }
 }

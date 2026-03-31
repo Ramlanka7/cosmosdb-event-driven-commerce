@@ -12,7 +12,9 @@ internal sealed class CosmosContainerCatalog : ICosmosContainerCatalog
     private static readonly IReadOnlyCollection<ContainerDefinition> RequiredContainers =
     [
         new("order-events", "/aggregateId"),
+        new("change-feed-leases", "/id"),
         new("orders-read", "/userId"),
+        new("notifications", "/userId"),
         new("users", "/userId"),
         new("recommendations", "/userId")
     ];

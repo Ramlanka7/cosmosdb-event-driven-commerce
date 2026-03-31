@@ -1,0 +1,205 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "bootstrap-cosmos",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "src/CosmosBootstrapper/CosmosBootstrapper.csproj"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "run-order-service",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "src/OrderService/OrderService.csproj",
+        "--launch-profile",
+        "http"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "csharp",
+        "pattern": {
+          "regexp": "^(.*)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^Building\.\.\.$",
+          "endsPattern": "Now listening on:\\s+http://localhost:5080"
+        }
+      }
+    },
+    {
+      "label": "run-change-feed-processor",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "src/ChangeFeedProcessor/ChangeFeedProcessor.csproj"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "csharp",
+        "pattern": {
+          "regexp": "^(.*)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^Building\.\.\.$",
+          "endsPattern": "Started change feed processor"
+        }
+      }
+    },
+    {
+      "label": "run-read-model-service",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "src/ReadModelService/ReadModelService.csproj",
+        "--launch-profile",
+        "http"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "csharp",
+        "pattern": {
+          "regexp": "^(.*)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^Building\.\.\.$",
+          "endsPattern": "Now listening on:\\s+http://localhost:5081"
+        }
+      }
+    },
+    {
+      "label": "run-notification-service",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "src/NotificationService/NotificationService.csproj",
+        "--launch-profile",
+        "http"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "csharp",
+        "pattern": {
+          "regexp": "^(.*)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^Building\.\.\.$",
+          "endsPattern": "Now listening on:\\s+http://localhost:5082"
+        }
+      }
+    },
+    {
+      "label": "run-recommendation-service",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "src/RecommendationService/RecommendationService.csproj",
+        "--launch-profile",
+        "http"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "csharp",
+        "pattern": {
+          "regexp": "^(.*)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^Building\.\.\.$",
+          "endsPattern": "Now listening on:\\s+http://localhost:5083"
+        }
+      }
+    },
+    {
+      "label": "run-api-gateway",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "src/ApiGateway/ApiGateway.csproj",
+        "--launch-profile",
+        "http"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "csharp",
+        "pattern": {
+          "regexp": "^(.*)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^Building\.\.\.$",
+          "endsPattern": "Now listening on:\\s+http://localhost:5084"
+        }
+      }
+    },
+    {
+      "label": "start-commerce-platform",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "run-order-service",
+        "run-change-feed-processor",
+        "run-read-model-service",
+        "run-notification-service",
+        "run-recommendation-service",
+        "run-api-gateway"
+      ]
+    },
+    {
+      "label": "bootstrap-and-start-commerce-platform",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "bootstrap-cosmos",
+        "start-commerce-platform"
+      ]
+    }
+  ]
+}
