@@ -11,11 +11,12 @@ internal sealed class OrderEventsProjectionWorker(
     CosmosClient cosmosClient,
     IOptions<CosmosDbOptions> options,
     JsonSerializerOptions serializerOptions,
-    IOrderSummaryProjector projector,
+    IChangeFeedFailureStore failureStore,
+    IOrderEventProjectionDispatcher dispatcher,
     ILogger<OrderEventsProjectionWorker> logger) : BackgroundService
 {
     private readonly CosmosDbOptions _options = options.Value;
-    private ChangeFeedProcessor? _processor;
+    private Microsoft.Azure.Cosmos.ChangeFeedProcessor? _processor;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -55,10 +56,30 @@ internal sealed class OrderEventsProjectionWorker(
     {
         foreach (CosmosEventDocument document in documents
                      .Where(item => string.Equals(item.documentType, "event", StringComparison.OrdinalIgnoreCase))
-                     .OrderBy(item => item.sequenceNumber))
+                     .OrderBy(item => item.sequenceNumber)
+                     .ThenBy(item => item.id, StringComparer.Ordinal))
         {
-            OrderEventEnvelope envelope = OrderEventDocumentDeserializer.Deserialize(document, serializerOptions);
-            await projector.ProjectAsync(envelope, cancellationToken);
+            OrderEventEnvelope envelope;
+
+            try
+            {
+                envelope = OrderEventDocumentDeserializer.Deserialize(document, serializerOptions);
+            }
+            catch (Exception exception)
+            {
+                await failureStore.RecordAsync(document, null, "event-deserialization", exception, cancellationToken);
+
+                logger.LogError(
+                    exception,
+                    "Failed to deserialize event document {DocumentId} for aggregate {AggregateId} at sequence {SequenceNumber}.",
+                    document.id,
+                    document.aggregateId,
+                    document.sequenceNumber);
+
+                throw;
+            }
+
+            await dispatcher.DispatchAsync(document, envelope, cancellationToken);
         }
     }
 }

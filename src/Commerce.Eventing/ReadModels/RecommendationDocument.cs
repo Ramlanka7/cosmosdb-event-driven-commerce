@@ -15,6 +15,8 @@ public sealed record class RecommendationDocument
     public required int lastProcessedSequenceNumber { get; init; }
 
     public required int projectionVersion { get; init; }
+
+    public IReadOnlyDictionary<string, int>? streamCheckpoints { get; init; }
 }
 
 public sealed record RecommendedSku(string Sku, decimal Score, string Reason);

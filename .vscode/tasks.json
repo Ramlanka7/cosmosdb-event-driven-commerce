@@ -2,6 +2,21 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "verify-local-environment",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/Test-LocalEnvironment.ps1"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "bootstrap-cosmos",
       "type": "shell",
       "command": "dotnet",
@@ -197,6 +212,7 @@
       "label": "bootstrap-and-start-commerce-platform",
       "dependsOrder": "sequence",
       "dependsOn": [
+        "verify-local-environment",
         "bootstrap-cosmos",
         "start-commerce-platform"
       ]

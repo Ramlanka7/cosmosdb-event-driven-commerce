@@ -7,7 +7,7 @@ namespace ReadModelService.Infrastructure;
 
 internal interface IOrderSummaryQueryService
 {
-    Task<IReadOnlyCollection<OrderSummaryDocument>> ListOrdersAsync(string userId, CancellationToken cancellationToken);
+    Task<OrderSummaryPage> ListOrdersAsync(OrderSummaryQuery query, CancellationToken cancellationToken);
 
     Task<OrderSummaryDocument?> GetOrderAsync(string userId, string orderId, CancellationToken cancellationToken);
 }
@@ -19,39 +19,46 @@ internal sealed class CosmosOrderSummaryQueryService(
 {
     private readonly CosmosDbOptions _options = options.Value;
 
-    public async Task<IReadOnlyCollection<OrderSummaryDocument>> ListOrdersAsync(string userId, CancellationToken cancellationToken)
+    public async Task<OrderSummaryPage> ListOrdersAsync(OrderSummaryQuery query, CancellationToken cancellationToken)
     {
-        QueryDefinition query = new QueryDefinition(
-            "SELECT * FROM c WHERE c.documentType = @documentType AND c.userId = @userId ORDER BY c.lastUpdatedAtUtc DESC")
-            .WithParameter("@documentType", "order-summary")
-            .WithParameter("@userId", userId);
+        OrderSummaryQuerySpecification specification = OrderSummaryQuerySpecificationBuilder.Build(query);
+        QueryDefinition queryDefinition = new(specification.QueryText);
+
+        foreach ((string name, object value) in specification.Parameters)
+        {
+            queryDefinition.WithParameter(name, value);
+        }
 
         QueryRequestOptions requestOptions = new()
         {
-            PartitionKey = new PartitionKey(userId),
-            MaxConcurrency = 1
+            PartitionKey = new PartitionKey(specification.UserId),
+            MaxConcurrency = 1,
+            MaxItemCount = specification.PageSize
         };
 
         using FeedIterator<OrderSummaryDocument> iterator = GetContainer()
-            .GetItemQueryIterator<OrderSummaryDocument>(query, requestOptions: requestOptions);
+            .GetItemQueryIterator<OrderSummaryDocument>(queryDefinition, specification.ContinuationToken, requestOptions);
 
-        List<OrderSummaryDocument> results = [];
-        double requestCharge = 0;
-
-        while (iterator.HasMoreResults)
+        if (!iterator.HasMoreResults)
         {
-            FeedResponse<OrderSummaryDocument> response = await iterator.ReadNextAsync(cancellationToken);
-            requestCharge += response.RequestCharge;
-            results.AddRange(response);
+            return new OrderSummaryPage([], null, specification.PageSize, 0);
         }
 
-        logger.LogInformation(
-            "Loaded {OrderCount} order summaries for user {UserId} with {RequestCharge:F2} RU.",
-            results.Count,
-            userId,
-            requestCharge);
+        FeedResponse<OrderSummaryDocument> response = await iterator.ReadNextAsync(cancellationToken);
+        OrderSummaryDocument[] results = response.ToArray();
 
-        return results;
+        logger.LogInformation(
+            "Loaded {OrderCount} order summaries for user {UserId} with status filter {StatusFilter}, updatedAfter {UpdatedAfterUtc}, updatedBefore {UpdatedBeforeUtc}, page size {PageSize}, next token present {HasContinuationToken}, and {RequestCharge:F2} RU.",
+            results.Length,
+            query.UserId,
+            query.Status ?? "(any)",
+            query.UpdatedAfterUtc,
+            query.UpdatedBeforeUtc,
+            query.PageSize,
+            !string.IsNullOrWhiteSpace(response.ContinuationToken),
+            response.RequestCharge);
+
+        return new OrderSummaryPage(results, response.ContinuationToken, specification.PageSize, response.RequestCharge);
     }
 
     public async Task<OrderSummaryDocument?> GetOrderAsync(string userId, string orderId, CancellationToken cancellationToken)

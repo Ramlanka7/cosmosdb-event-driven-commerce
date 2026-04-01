@@ -17,6 +17,7 @@ The bootstrapper is structured as a hosted application with:
 
 - `order-events` with partition key `/aggregateId`
 - `change-feed-leases` with partition key `/id`
+- `change-feed-failures` with partition key `/aggregateId`
 - `orders-read` with partition key `/userId`
 - `notifications` with partition key `/userId`
 - `users` with partition key `/userId`
@@ -69,10 +70,10 @@ The default `appsettings.json` targets the local Azure Cosmos DB Emulator and ex
 
 The repository now includes the rest of the baseline service scaffolding described in the architecture:
 
-- `src/ChangeFeedProcessor` projects `order-events` into `orders-read`
+- `src/ChangeFeedProcessor` projects `order-events` into `orders-read` and `recommendations`
 - `src/ReadModelService` exposes user-centric order queries from `orders-read`
 - `src/NotificationService` records deduplicated notifications from order events
-- `src/RecommendationService` maintains recommendation profiles in `recommendations`
+- `src/RecommendationService` serves recommendation profiles from `recommendations`
 - `src/ApiGateway` provides a thin client-facing proxy over the command and query services
 
 ### Run Them
@@ -99,8 +100,60 @@ The reactive services expect the bootstrapper to have already created `change-fe
 
 The workspace now includes `.vscode/tasks.json` with two entrypoints:
 
+- `verify-local-environment` validates the .NET SDK, Azure Cosmos DB Emulator installation, emulator availability on port `8081`, and optional Docker availability
 - `bootstrap-cosmos` provisions the local emulator database and containers
 - `bootstrap-and-start-commerce-platform` provisions Cosmos DB and then starts all long-running services with the standardized `http` launch profile
+
+## Local Development Standard
+
+The repository now has a deterministic local-first setup flow built around the Azure Cosmos DB Emulator.
+
+### Supported Local Baseline
+
+- .NET SDK 8.0 or later installed locally
+- Azure Cosmos DB Emulator installed and running on `https://localhost:8081/`
+- Optional Docker tooling for teams that want containerized adjunct services later
+- No cloud credentials required for the default local path
+
+### Configuration Rules
+
+- The checked-in defaults target the local Azure Cosmos DB Emulator and the shared `commerce-platform` database
+- Cloud credentials must be supplied through environment variables or gitignored `appsettings.Development.json` files, not committed settings
+- Standard .NET configuration overrides are supported, for example `CosmosDb__Endpoint` and `CosmosDb__Key`
+
+### Recommended Startup Sequence
+
+1. Run `verify-local-environment`
+2. Run `bootstrap-cosmos`
+3. Run `start-commerce-platform` or `bootstrap-and-start-commerce-platform`
+4. Create an order through `OrderService` or `ApiGateway`
+5. Verify projections and downstream side effects through the read APIs and health endpoints
+
+### Runtime Validation
+
+After startup, confirm the HTTP services are ready:
+
+```bash
+curl http://localhost:5080/health
+curl http://localhost:5081/health
+curl http://localhost:5082/health
+curl http://localhost:5083/health
+curl http://localhost:5084/health
+```
+
+Then validate the end-to-end event flow:
+
+```bash
+curl -X POST http://localhost:5080/orders \
+	-H "Content-Type: application/json" \
+	-d "{\"userId\":\"user-123\",\"items\":[{\"sku\":\"sku-1\",\"quantity\":1,\"unitPrice\":24.99}]}"
+
+curl http://localhost:5081/users/user-123/orders
+curl http://localhost:5082/users/user-123/notifications
+curl http://localhost:5083/users/user-123/recommendations
+```
+
+If you are not using the emulator, export `CosmosDb__Endpoint` and `CosmosDb__Key` before running the bootstrapper and services so all projects resolve the same account settings.
 
 ## 📌 Repository Name (Recommended)
 
@@ -234,7 +287,7 @@ This project shows how to use Cosmos DB as:
 
 ## Prerequisites
 
-* .NET 8 SDK
+* .NET SDK 8.0 or later
 * Azure Cosmos DB account (or Emulator)
 * Docker (optional)
 
@@ -243,11 +296,13 @@ This project shows how to use Cosmos DB as:
 ## Setup Steps
 
 1. Clone the repository
-2. Run the bootstrapper to create the required containers
-3. Configure per-service `appsettings.json` values if you are not using the local emulator defaults
-4. Run services:
+2. Run `verify-local-environment` to catch missing local prerequisites early
+3. Run the bootstrapper to create the required containers
+4. Configure per-service settings only if you are not using the local emulator defaults
+5. Run services:
 
 ```bash
+powershell -ExecutionPolicy Bypass -File scripts/Test-LocalEnvironment.ps1
 dotnet run --project src/CosmosBootstrapper
 dotnet run --project src/OrderService
 dotnet run --project src/ChangeFeedProcessor

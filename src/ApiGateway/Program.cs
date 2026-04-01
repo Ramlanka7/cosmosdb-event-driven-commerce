@@ -4,6 +4,7 @@ using ApiGateway.Configuration;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
+builder.Services.AddHealthChecks();
 builder.Services
 	.AddOptions<DownstreamServicesOptions>()
 	.Bind(builder.Configuration.GetSection(DownstreamServicesOptions.SectionName))
@@ -42,6 +43,7 @@ builder.Services.AddHttpClient("recommendation-service", (serviceProvider, clien
 var app = builder.Build();
 
 app.UseExceptionHandler();
+app.MapHealthChecks("/health");
 
 app.MapPost("/orders", (HttpContext context, IHttpClientFactory httpClientFactory, CancellationToken cancellationToken)
 	=> ProxyAsync(context, httpClientFactory.CreateClient("order-service"), "/orders", cancellationToken));

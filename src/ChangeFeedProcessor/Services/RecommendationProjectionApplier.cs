@@ -1,18 +1,23 @@
 using Commerce.Eventing.Contracts;
 using Commerce.Eventing.ReadModels;
 
-namespace RecommendationService.Services;
+namespace ChangeFeedProcessor.Services;
 
 internal static class RecommendationProjectionApplier
 {
     private const string DocumentType = "recommendation-profile";
-    private const int ProjectionVersion = 1;
+    private const int ProjectionVersion = 2;
 
     public static RecommendationDocument Apply(RecommendationDocument? current, OrderEventEnvelope envelope)
     {
-        if (current is not null && current.lastProcessedSequenceNumber >= envelope.SequenceNumber)
+        Dictionary<string, int> streamCheckpoints = current?.streamCheckpoints?
+            .ToDictionary(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase)
+            ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        if (streamCheckpoints.TryGetValue(envelope.AggregateId, out int lastProcessedSequenceNumber) &&
+            lastProcessedSequenceNumber >= envelope.SequenceNumber)
         {
-            return current;
+            return current ?? CreateEmpty(envelope.Payload.UserId);
         }
 
         Dictionary<string, RecommendedSku> suggestions = current?.suggestedSkus
@@ -34,6 +39,8 @@ internal static class RecommendationProjectionApplier
             }
         }
 
+        streamCheckpoints[envelope.AggregateId] = envelope.SequenceNumber;
+
         return new RecommendationDocument
         {
             id = envelope.Payload.UserId,
@@ -46,7 +53,20 @@ internal static class RecommendationProjectionApplier
                 .ToArray(),
             lastRefreshedAtUtc = envelope.OccurredAtUtc,
             lastProcessedSequenceNumber = envelope.SequenceNumber,
-            projectionVersion = ProjectionVersion
+            projectionVersion = ProjectionVersion,
+            streamCheckpoints = streamCheckpoints
         };
     }
+
+    private static RecommendationDocument CreateEmpty(string userId) => new()
+    {
+        id = userId,
+        documentType = DocumentType,
+        userId = userId,
+        suggestedSkus = [],
+        lastRefreshedAtUtc = DateTime.MinValue,
+        lastProcessedSequenceNumber = 0,
+        projectionVersion = ProjectionVersion,
+        streamCheckpoints = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+    };
 }

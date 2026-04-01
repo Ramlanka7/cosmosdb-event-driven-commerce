@@ -68,4 +68,41 @@ public sealed class OrderSummaryProjectionApplierTests
         Assert.Equal(new DateTime(2026, 3, 30, 10, 5, 0, DateTimeKind.Utc), updated.lastUpdatedAtUtc);
         Assert.Single(updated.items);
     }
+
+    [Fact]
+    public void Apply_duplicate_sequence_keeps_existing_projection()
+    {
+        OrderSummaryDocument current = new()
+        {
+            id = "order-100",
+            documentType = "order-summary",
+            orderId = "order-100",
+            userId = "user-100",
+            status = "Pending",
+            items = [new OrderItemData("sku-1", 1, 50m)],
+            totalAmount = 50m,
+            createdAtUtc = new DateTime(2026, 3, 30, 10, 0, 0, DateTimeKind.Utc),
+            lastUpdatedAtUtc = new DateTime(2026, 3, 30, 10, 0, 0, DateTimeKind.Utc),
+            lastProcessedSequenceNumber = 2,
+            projectionVersion = 1
+        };
+
+        OrderEventEnvelope envelope = new(
+            "order-100",
+            1,
+            OrderEventTypes.OrderCreated,
+            1,
+            new DateTime(2026, 3, 30, 9, 55, 0, DateTimeKind.Utc),
+            "corr-3",
+            "cause-3",
+            new OrderCreatedIntegrationEvent(
+                "order-100",
+                "user-100",
+                [new OrderItemData("sku-1", 1, 50m)],
+                new DateTime(2026, 3, 30, 9, 55, 0, DateTimeKind.Utc)));
+
+        OrderSummaryDocument updated = OrderSummaryProjectionApplier.Apply(current, envelope);
+
+        Assert.Same(current, updated);
+    }
 }

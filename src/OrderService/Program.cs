@@ -10,6 +10,7 @@ using Microsoft.Azure.Cosmos;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
+builder.Services.AddHealthChecks();
 
 builder.Services
     .AddOptions<CosmosDbOptions>()
@@ -26,6 +27,7 @@ builder.Services.AddSingleton<IOrderCommandService, OrderCommandService>();
 var app = builder.Build();
 
 app.UseExceptionHandler();
+app.MapHealthChecks("/health");
 
 RouteGroupBuilder orders = app.MapGroup("/orders");
 

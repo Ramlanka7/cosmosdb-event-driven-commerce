@@ -27,19 +27,9 @@ internal sealed class CosmosDbOptionsValidator : IValidateOptions<CosmosDbOption
             failures.Add("CosmosDb:DatabaseName is required.");
         }
 
-        if (string.IsNullOrWhiteSpace(options.OrderEventsContainerName))
-        {
-            failures.Add("CosmosDb:OrderEventsContainerName is required.");
-        }
-
         if (string.IsNullOrWhiteSpace(options.RecommendationsContainerName))
         {
             failures.Add("CosmosDb:RecommendationsContainerName is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(options.LeasesContainerName))
-        {
-            failures.Add("CosmosDb:LeasesContainerName is required.");
         }
 
         if (options.PreferredRegions.Any(string.IsNullOrWhiteSpace))

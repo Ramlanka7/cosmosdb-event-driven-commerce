@@ -11,18 +11,20 @@ namespace ChangeFeedProcessor.Services;
 internal sealed class OrderSummaryProjector(
     CosmosClient cosmosClient,
     IOptions<CosmosDbOptions> options,
-    JsonSerializerOptions serializerOptions,
-    ILogger<OrderSummaryProjector> logger) : IOrderSummaryProjector
+    IOrderSummaryProjectionRebuilder projectionRebuilder,
+    ILogger<OrderSummaryProjector> logger) : IOrderEventProjectionHandler
 {
     private readonly CosmosDbOptions _options = options.Value;
+
+    public string Name => "order-summary-projection";
 
     public async Task ProjectAsync(OrderEventEnvelope envelope, CancellationToken cancellationToken)
     {
         OrderSummaryDocument? current = await TryReadAsync(envelope.Payload.UserId, envelope.AggregateId, cancellationToken);
 
-        if (current is null && envelope.Payload is OrderConfirmedIntegrationEvent)
+        if (current is null && envelope.SequenceNumber > 1)
         {
-            current = await RebuildFromHistoryAsync(envelope.AggregateId, cancellationToken);
+            current = await projectionRebuilder.RebuildAsync(envelope.AggregateId, cancellationToken);
         }
 
         if (current is not null && current.lastProcessedSequenceNumber >= envelope.SequenceNumber)
@@ -57,40 +59,6 @@ internal sealed class OrderSummaryProjector(
             return null;
         }
     }
-
-    private async Task<OrderSummaryDocument?> RebuildFromHistoryAsync(string aggregateId, CancellationToken cancellationToken)
-    {
-        QueryDefinition query = new QueryDefinition(
-            "SELECT * FROM c WHERE c.documentType = @documentType AND c.aggregateId = @aggregateId ORDER BY c.sequenceNumber ASC")
-            .WithParameter("@documentType", "event")
-            .WithParameter("@aggregateId", aggregateId);
-
-        QueryRequestOptions requestOptions = new()
-        {
-            PartitionKey = new PartitionKey(aggregateId),
-            MaxConcurrency = 1
-        };
-
-        using FeedIterator<CosmosEventDocument> iterator = GetOrderEventsContainer()
-            .GetItemQueryIterator<CosmosEventDocument>(query, requestOptions: requestOptions);
-
-        OrderSummaryDocument? current = null;
-
-        while (iterator.HasMoreResults)
-        {
-            FeedResponse<CosmosEventDocument> response = await iterator.ReadNextAsync(cancellationToken);
-
-            foreach (CosmosEventDocument document in response.OrderBy(item => item.sequenceNumber))
-            {
-                OrderEventEnvelope envelope = OrderEventDocumentDeserializer.Deserialize(document, serializerOptions);
-                current = OrderSummaryProjectionApplier.Apply(current, envelope);
-            }
-        }
-
-        return current;
-    }
-
-    private Container GetOrderEventsContainer() => cosmosClient.GetContainer(_options.DatabaseName, _options.OrderEventsContainerName);
 
     private Container GetOrdersReadContainer() => cosmosClient.GetContainer(_options.DatabaseName, _options.OrdersReadContainerName);
 }

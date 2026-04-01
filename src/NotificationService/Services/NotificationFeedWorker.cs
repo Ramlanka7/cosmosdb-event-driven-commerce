@@ -12,6 +12,7 @@ internal sealed class NotificationFeedWorker(
     CosmosClient cosmosClient,
     IOptions<CosmosDbOptions> options,
     JsonSerializerOptions serializerOptions,
+    IChangeFeedFailureStore failureStore,
     INotificationStore notificationStore,
     ILogger<NotificationFeedWorker> logger) : BackgroundService
 {
@@ -52,19 +53,37 @@ internal sealed class NotificationFeedWorker(
     {
         foreach (CosmosEventDocument document in documents
                      .Where(item => string.Equals(item.documentType, "event", StringComparison.OrdinalIgnoreCase))
-                     .OrderBy(item => item.sequenceNumber))
+                     .OrderBy(item => item.sequenceNumber)
+                     .ThenBy(item => item.id, StringComparer.Ordinal))
         {
-            OrderEventEnvelope envelope = OrderEventDocumentDeserializer.Deserialize(document, serializerOptions);
-            NotificationDocument notification = NotificationFactory.Create(envelope);
-            bool created = await notificationStore.RecordAsync(notification, cancellationToken);
+            OrderEventEnvelope? envelope = null;
 
-            if (created)
+            try
             {
-                logger.LogInformation(
-                    "Dispatched {NotificationType} notification for order {OrderId} and user {UserId}.",
-                    notification.notificationType,
-                    notification.orderId,
-                    notification.userId);
+                envelope = OrderEventDocumentDeserializer.Deserialize(document, serializerOptions);
+                NotificationDocument notification = NotificationFactory.Create(envelope);
+                bool created = await notificationStore.RecordAsync(notification, cancellationToken);
+
+                if (created)
+                {
+                    logger.LogInformation(
+                        "Dispatched {NotificationType} notification for order {OrderId} and user {UserId}.",
+                        notification.notificationType,
+                        notification.orderId,
+                        notification.userId);
+                }
+            }
+            catch (Exception exception)
+            {
+                await failureStore.RecordAsync(document, envelope, "notification-side-effects", exception, cancellationToken);
+
+                logger.LogError(
+                    exception,
+                    "Notification processing failed for aggregate {AggregateId} at sequence {SequenceNumber}.",
+                    document.aggregateId,
+                    document.sequenceNumber);
+
+                throw;
             }
         }
     }

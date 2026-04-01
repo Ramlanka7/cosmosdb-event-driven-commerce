@@ -16,6 +16,8 @@ internal sealed class CosmosDbOptions
 
     public string LeasesContainerName { get; init; } = "change-feed-leases";
 
+    public string FailuresContainerName { get; init; } = "change-feed-failures";
+
     public string ProcessorName { get; init; } = "notifications-projector";
 
     public string InstanceName { get; init; } = "notifications-projector-local";

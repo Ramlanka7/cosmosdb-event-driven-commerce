@@ -37,9 +37,19 @@ internal sealed class CosmosDbOptionsValidator : IValidateOptions<CosmosDbOption
             failures.Add("CosmosDb:OrdersReadContainerName is required.");
         }
 
+        if (string.IsNullOrWhiteSpace(options.RecommendationsContainerName))
+        {
+            failures.Add("CosmosDb:RecommendationsContainerName is required.");
+        }
+
         if (string.IsNullOrWhiteSpace(options.LeasesContainerName))
         {
             failures.Add("CosmosDb:LeasesContainerName is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(options.FailuresContainerName))
+        {
+            failures.Add("CosmosDb:FailuresContainerName is required.");
         }
 
         if (string.IsNullOrWhiteSpace(options.ProcessorName))

@@ -42,6 +42,11 @@ internal sealed class CosmosDbOptionsValidator : IValidateOptions<CosmosDbOption
             failures.Add("CosmosDb:LeasesContainerName is required.");
         }
 
+        if (string.IsNullOrWhiteSpace(options.FailuresContainerName))
+        {
+            failures.Add("CosmosDb:FailuresContainerName is required.");
+        }
+
         if (options.PreferredRegions.Any(string.IsNullOrWhiteSpace))
         {
             failures.Add("CosmosDb:PreferredRegions cannot contain empty values.");

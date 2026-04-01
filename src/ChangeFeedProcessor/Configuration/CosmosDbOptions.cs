@@ -14,7 +14,11 @@ internal sealed class CosmosDbOptions
 
     public string OrdersReadContainerName { get; init; } = "orders-read";
 
+    public string RecommendationsContainerName { get; init; } = "recommendations";
+
     public string LeasesContainerName { get; init; } = "change-feed-leases";
+
+    public string FailuresContainerName { get; init; } = "change-feed-failures";
 
     public string ProcessorName { get; init; } = "orders-read-projector";
 

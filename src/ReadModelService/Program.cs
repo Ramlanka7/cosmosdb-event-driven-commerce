@@ -8,6 +8,7 @@ using ReadModelService.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
+builder.Services.AddHealthChecks();
 builder.Services
 	.AddOptions<CosmosDbOptions>()
 	.Bind(builder.Configuration.GetSection(CosmosDbOptions.SectionName))
@@ -20,16 +21,35 @@ builder.Services.AddSingleton<IOrderSummaryQueryService, CosmosOrderSummaryQuery
 var app = builder.Build();
 
 app.UseExceptionHandler();
+app.MapHealthChecks("/health");
 
 RouteGroupBuilder users = app.MapGroup("/users/{userId}");
 
 users.MapGet("/orders", async Task<IResult> (
+	HttpContext httpContext,
 	string userId,
+	[AsParameters] ListOrderSummariesRequest request,
 	IOrderSummaryQueryService queryService,
 	CancellationToken cancellationToken) =>
 {
-	IReadOnlyCollection<OrderSummaryDocument> documents = await queryService.ListOrdersAsync(userId, cancellationToken);
-	IReadOnlyCollection<OrderSummaryResponse> response = documents.Select(MapResponse).ToArray();
+	Dictionary<string, string[]>? validationFailures = ValidateRequest(request);
+
+	if (validationFailures is not null)
+	{
+		return TypedResults.ValidationProblem(validationFailures);
+	}
+
+	OrderSummaryQuery query = request.ToQuery(userId);
+	OrderSummaryPage page = await queryService.ListOrdersAsync(query, cancellationToken);
+
+	if (!string.IsNullOrWhiteSpace(page.ContinuationToken))
+	{
+		httpContext.Response.Headers.Append("x-continuation-token", page.ContinuationToken);
+	}
+
+	httpContext.Response.Headers.Append("x-page-size", page.PageSize.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+	IReadOnlyCollection<OrderSummaryResponse> response = page.Items.Select(MapResponse).ToArray();
 	return TypedResults.Ok(response);
 });
 
@@ -61,3 +81,29 @@ static OrderSummaryResponse MapResponse(OrderSummaryDocument document) => new(
 	document.createdAtUtc,
 	document.lastUpdatedAtUtc,
 	document.items.Select(item => new OrderItemResponse(item.Sku, item.Quantity, item.UnitPrice)).ToArray());
+
+static Dictionary<string, string[]>? ValidateRequest(ListOrderSummariesRequest request)
+{
+	Dictionary<string, string[]> failures = [];
+
+	if (request.PageSize is <= 0)
+	{
+		failures[nameof(request.PageSize)] = ["PageSize must be greater than zero."];
+	}
+	else if (request.PageSize is > ListOrderSummariesRequest.MaxPageSize)
+	{
+		failures[nameof(request.PageSize)] = [$"PageSize cannot exceed {ListOrderSummariesRequest.MaxPageSize}."];
+	}
+
+	if (!ListOrderSummariesRequest.TryNormalizeStatus(request.Status, out _))
+	{
+		failures[nameof(request.Status)] = [$"Status must be one of: {string.Join(", ", ListOrderSummariesRequest.SupportedStatuses)}."];
+	}
+
+	if (request.UpdatedAfterUtc is not null && request.UpdatedBeforeUtc is not null && request.UpdatedAfterUtc > request.UpdatedBeforeUtc)
+	{
+		failures[nameof(request.UpdatedAfterUtc)] = ["UpdatedAfterUtc must be earlier than or equal to UpdatedBeforeUtc."];
+	}
+
+	return failures.Count == 0 ? null : failures;
+}
