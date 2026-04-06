@@ -21,9 +21,23 @@ builder.Services.AddSingleton<IChangeFeedFailureStore, CosmosChangeFeedFailureSt
 builder.Services.AddSingleton<INotificationStore, CosmosNotificationStore>();
 builder.Services.AddHostedService<NotificationFeedWorker>();
 
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+        policy.AllowAnyOrigin().WithMethods("GET", "POST").AllowAnyHeader());
+});
+
 var app = builder.Build();
 
 app.UseExceptionHandler();
+app.UseCors();
+
+if (!app.Environment.IsDevelopment())
+{
+	app.UseHsts();
+	app.UseHttpsRedirection();
+}
+
 app.MapHealthChecks("/health");
 
 app.MapGet("/users/{userId}/notifications", async Task<IResult> (

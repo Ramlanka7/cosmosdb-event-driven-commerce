@@ -5,6 +5,7 @@ using Commerce.Eventing.Infrastructure;
 using Commerce.Eventing.ReadModels;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json.Linq;
 
 namespace ChangeFeedProcessor.Services;
 
@@ -106,11 +107,10 @@ internal sealed class CosmosChangeFeedFailureStore(
 
     private static string? TryReadUserId(CosmosEventDocument sourceDocument)
     {
-        if (sourceDocument.payload.ValueKind == System.Text.Json.JsonValueKind.Object &&
-            sourceDocument.payload.TryGetProperty("userId", out System.Text.Json.JsonElement userIdElement) &&
-            userIdElement.ValueKind == System.Text.Json.JsonValueKind.String)
+        JToken? userIdToken = sourceDocument.payload["userId"];
+        if (userIdToken is not null && userIdToken.Type == JTokenType.String)
         {
-            return userIdElement.GetString();
+            return userIdToken.Value<string>();
         }
 
         return null;

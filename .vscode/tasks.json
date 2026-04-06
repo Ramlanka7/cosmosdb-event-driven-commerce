@@ -19,8 +19,12 @@
     {
       "label": "bootstrap-cosmos",
       "type": "shell",
-      "command": "dotnet",
+      "command": "powershell",
       "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/Run-DotnetWithEnv.ps1",
         "run",
         "--project",
         "src/CosmosBootstrapper/CosmosBootstrapper.csproj"
@@ -33,8 +37,12 @@
     {
       "label": "run-order-service",
       "type": "shell",
-      "command": "dotnet",
+      "command": "powershell",
       "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/Run-DotnetWithEnv.ps1",
         "run",
         "--project",
         "src/OrderService/OrderService.csproj",
@@ -61,8 +69,12 @@
     {
       "label": "run-change-feed-processor",
       "type": "shell",
-      "command": "dotnet",
+      "command": "powershell",
       "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/Run-DotnetWithEnv.ps1",
         "run",
         "--project",
         "src/ChangeFeedProcessor/ChangeFeedProcessor.csproj"
@@ -87,8 +99,12 @@
     {
       "label": "run-read-model-service",
       "type": "shell",
-      "command": "dotnet",
+      "command": "powershell",
       "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/Run-DotnetWithEnv.ps1",
         "run",
         "--project",
         "src/ReadModelService/ReadModelService.csproj",
@@ -115,8 +131,12 @@
     {
       "label": "run-notification-service",
       "type": "shell",
-      "command": "dotnet",
+      "command": "powershell",
       "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/Run-DotnetWithEnv.ps1",
         "run",
         "--project",
         "src/NotificationService/NotificationService.csproj",
@@ -143,8 +163,12 @@
     {
       "label": "run-recommendation-service",
       "type": "shell",
-      "command": "dotnet",
+      "command": "powershell",
       "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/Run-DotnetWithEnv.ps1",
         "run",
         "--project",
         "src/RecommendationService/RecommendationService.csproj",
@@ -197,6 +221,38 @@
       }
     },
     {
+      "label": "run-demo-ui",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/Run-DotnetWithEnv.ps1",
+        "run",
+        "--project",
+        "src/DemoUI/DemoUI.csproj",
+        "--launch-profile",
+        "http"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "csharp",
+        "pattern": {
+          "regexp": "^(.*)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^Building\\.\\.\\.\\$",
+          "endsPattern": "Now listening on:\\s+http://localhost:5085"
+        }
+      }
+    },
+    {
       "label": "start-commerce-platform",
       "dependsOrder": "parallel",
       "dependsOn": [
@@ -205,7 +261,8 @@
         "run-read-model-service",
         "run-notification-service",
         "run-recommendation-service",
-        "run-api-gateway"
+        "run-api-gateway",
+        "run-demo-ui"
       ]
     },
     {

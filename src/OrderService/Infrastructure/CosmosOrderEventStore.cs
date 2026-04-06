@@ -46,7 +46,10 @@ internal sealed class CosmosOrderEventStore(
         {
             FeedResponse<CosmosEventDocument> response = await iterator.ReadNextAsync(cancellationToken);
             requestCharge += response.RequestCharge;
-            events.AddRange(response.Select(documentMapper.ToStoredEvent));
+            foreach (CosmosEventDocument document in response)
+            {
+                events.Add(documentMapper.ToStoredEvent(document));
+            }
         }
 
         stopwatch.Stop();
@@ -81,7 +84,8 @@ internal sealed class CosmosOrderEventStore(
                 stopwatch.ElapsedMilliseconds,
                 response.RequestCharge);
 
-            return documentMapper.ToStoredEvent(response.Resource);
+            // Use the source document to avoid SDK payload materialization edge cases for JsonElement.
+            return documentMapper.ToStoredEvent(document);
         }
         catch (CosmosException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
         {

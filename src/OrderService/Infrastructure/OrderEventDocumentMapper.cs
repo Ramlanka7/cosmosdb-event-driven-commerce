@@ -1,5 +1,6 @@
 using System.Text.Json;
 using OrderService.Domain;
+using Newtonsoft.Json.Linq;
 
 namespace OrderService.Infrastructure;
 
@@ -17,6 +18,8 @@ internal sealed class OrderEventDocumentMapper(JsonSerializerOptions serializerO
 
     public CosmosEventDocument ToDocument(string aggregateId, int sequenceNumber, IOrderEvent orderEvent, EventMetadata metadata)
     {
+        string payloadJson = System.Text.Json.JsonSerializer.Serialize((object)orderEvent, orderEvent.GetType(), serializerOptions);
+
         return new CosmosEventDocument
         {
             id = $"{aggregateId}:{sequenceNumber:D10}",
@@ -29,17 +32,19 @@ internal sealed class OrderEventDocumentMapper(JsonSerializerOptions serializerO
             correlationId = metadata.CorrelationId,
             causationId = metadata.CausationId,
             schemaVersion = SchemaVersion,
-            payload = JsonSerializer.SerializeToElement((object)orderEvent, orderEvent.GetType(), serializerOptions)
+            payload = JObject.Parse(payloadJson)
         };
     }
 
     public StoredOrderEvent ToStoredEvent(CosmosEventDocument document)
     {
+        string payloadJson = document.payload.ToString(Newtonsoft.Json.Formatting.None);
+
         IOrderEvent payload = (document.eventType, document.eventVersion) switch
         {
-            (OrderEventTypes.OrderCreated, 1) => document.payload.Deserialize<OrderCreated>(serializerOptions)
+            (OrderEventTypes.OrderCreated, 1) => System.Text.Json.JsonSerializer.Deserialize<OrderCreated>(payloadJson, serializerOptions)
                 ?? throw new InvalidOperationException("Unable to deserialize order-created event payload."),
-            (OrderEventTypes.OrderConfirmed, 1) => document.payload.Deserialize<OrderConfirmed>(serializerOptions)
+            (OrderEventTypes.OrderConfirmed, 1) => System.Text.Json.JsonSerializer.Deserialize<OrderConfirmed>(payloadJson, serializerOptions)
                 ?? throw new InvalidOperationException("Unable to deserialize order-confirmed event payload."),
             _ => throw new NotSupportedException($"Unsupported event '{document.eventType}' version {document.eventVersion}.")
         };

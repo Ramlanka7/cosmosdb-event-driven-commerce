@@ -53,14 +53,84 @@ function Test-DotNetSdk {
 }
 
 function Test-CosmosOverrideConfiguration {
-    return -not [string]::IsNullOrWhiteSpace($env:CosmosDb__Endpoint) -and -not [string]::IsNullOrWhiteSpace($env:CosmosDb__Key)
+    $endpoint = Get-CosmosEndpoint
+    $key = Get-CosmosKey
+    return -not [string]::IsNullOrWhiteSpace($endpoint) -and -not [string]::IsNullOrWhiteSpace($key)
+}
+
+function Import-DotEnvIfPresent {
+    $workspaceRoot = Split-Path -Parent $PSScriptRoot
+    $dotenvPath = Join-Path $workspaceRoot '.env'
+
+    if (-not (Test-Path $dotenvPath)) {
+        return
+    }
+
+    Get-Content $dotenvPath | ForEach-Object {
+        $line = $_.Trim()
+        if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith('#')) {
+            return
+        }
+
+        $parts = $line.Split('=', 2)
+        if ($parts.Length -ne 2) {
+            return
+        }
+
+        $key = $parts[0].Trim()
+        $value = $parts[1].Trim()
+
+        if (($value.StartsWith('"') -and $value.EndsWith('"')) -or ($value.StartsWith("'") -and $value.EndsWith("'"))) {
+            $value = $value.Substring(1, $value.Length - 2)
+        }
+
+        if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($key))) {
+            [Environment]::SetEnvironmentVariable($key, $value)
+        }
+    }
+}
+
+function Get-CosmosEndpoint {
+    if (-not [string]::IsNullOrWhiteSpace($env:CosmosDb__Endpoint)) {
+        return $env:CosmosDb__Endpoint
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:COSMOS_DB_ENDPOINT)) {
+        return $env:COSMOS_DB_ENDPOINT
+    }
+
+    return $null
+}
+
+function Get-CosmosKey {
+    if (-not [string]::IsNullOrWhiteSpace($env:CosmosDb__Key)) {
+        return $env:CosmosDb__Key
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:COSMOS_DB_KEY)) {
+        return $env:COSMOS_DB_KEY
+    }
+
+    return $null
 }
 
 function Test-CosmosEmulator {
     $hasOverrideConfiguration = Test-CosmosOverrideConfiguration
+    $configuredEndpoint = Get-CosmosEndpoint
     $emulatorExecutablePath = Join-Path ${env:ProgramFiles} 'Azure Cosmos DB Emulator\CosmosDB.Emulator.exe'
     $isInstalled = Test-Path $emulatorExecutablePath
     $isRunning = $false
+    $requiresEmulator = $true
+
+    if (-not [string]::IsNullOrWhiteSpace($configuredEndpoint)) {
+        try {
+            $endpointUri = [Uri]$configuredEndpoint
+            $requiresEmulator = $endpointUri.Host -in @('localhost', '127.0.0.1', 'host.docker.internal', 'cosmos-emulator')
+        }
+        catch {
+            Add-WarningMessage "Configured Cosmos endpoint '$configuredEndpoint' is not a valid URI."
+        }
+    }
 
     try {
         $isRunning = Test-NetConnection -ComputerName 'localhost' -Port 8081 -InformationLevel Quiet -WarningAction SilentlyContinue
@@ -70,7 +140,12 @@ function Test-CosmosEmulator {
     }
 
     if ($hasOverrideConfiguration) {
-        Add-Detail "Custom Cosmos endpoint override detected: $($env:CosmosDb__Endpoint)"
+        Add-Detail "Cosmos endpoint override detected: $configuredEndpoint"
+
+        if (-not $requiresEmulator) {
+            Add-Detail 'Using non-local Cosmos endpoint. Local emulator is not required.'
+            return
+        }
 
         if (-not $isInstalled) {
             Add-WarningMessage 'Azure Cosmos DB Emulator is not installed, but custom CosmosDb__Endpoint and CosmosDb__Key overrides are present.'
@@ -116,6 +191,7 @@ function Test-Docker {
 }
 
 Test-DotNetSdk
+Import-DotEnvIfPresent
 Test-CosmosEmulator
 Test-Docker
 

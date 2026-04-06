@@ -5,6 +5,7 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Net.Http;
 
 namespace CosmosBootstrapper.DependencyInjection;
 
@@ -55,6 +56,28 @@ internal static class ServiceCollectionExtensions
             clientOptions.ApplicationPreferredRegions = options.PreferredRegions;
         }
 
+        if (ShouldAllowInsecureCertificate(options.Endpoint))
+        {
+            clientOptions.ConnectionMode = ConnectionMode.Gateway;
+            clientOptions.HttpClientFactory = () => new HttpClient(new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            });
+        }
+
         return new CosmosClient(options.Endpoint, options.Key, clientOptions);
+    }
+
+    private static bool ShouldAllowInsecureCertificate(string endpoint)
+    {
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out Uri? endpointUri))
+        {
+            return false;
+        }
+
+        return endpointUri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+               || endpointUri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
+             || endpointUri.Host.Equals("host.docker.internal", StringComparison.OrdinalIgnoreCase)
+             || endpointUri.Host.Equals("cosmos-emulator", StringComparison.OrdinalIgnoreCase);
     }
 }

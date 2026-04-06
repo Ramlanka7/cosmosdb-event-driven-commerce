@@ -17,9 +17,23 @@ builder.Services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<Cosm
 builder.Services.AddSingleton(CosmosClientFactory.Create);
 builder.Services.AddSingleton<IRecommendationStore, CosmosRecommendationStore>();
 
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+        policy.AllowAnyOrigin().WithMethods("GET", "POST").AllowAnyHeader());
+});
+
 var app = builder.Build();
 
 app.UseExceptionHandler();
+app.UseCors();
+
+if (!app.Environment.IsDevelopment())
+{
+	app.UseHsts();
+	app.UseHttpsRedirection();
+}
+
 app.MapHealthChecks("/health");
 
 app.MapGet("/users/{userId}/recommendations", async Task<IResult> (

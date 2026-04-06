@@ -1,0 +1,168 @@
+name: commerce-platform
+
+x-cosmos-environment: &cosmos-environment
+  CosmosDb__Endpoint: ${COSMOS_DB_ENDPOINT}
+  CosmosDb__Key: ${COSMOS_DB_KEY}
+  CosmosDb__DatabaseName: ${COSMOS_DB_DATABASE_NAME:-commerce-platform}
+
+services:
+  cosmos-emulator:
+    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+    profiles: ["emulator"]
+    environment:
+      ACCEPT_EULA: "Y"
+      AZURE_COSMOS_EMULATOR_PARTITION_COUNT: "1"
+      AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE: "true"
+    ports:
+      - "8081:8081"
+    volumes:
+      - cosmos-emulator-data:/tmp/cosmos/appdata
+    restart: unless-stopped
+
+  cosmos-bootstrapper:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_FILE: src/CosmosBootstrapper/CosmosBootstrapper.csproj
+        APP_DLL: CosmosBootstrapper.dll
+    environment:
+      <<: *cosmos-environment
+      DOTNET_ENVIRONMENT: Production
+      CosmosDb__ResetDatabaseOnProvision: "false"
+      Bootstrapper__ContinuousMode: "false"
+    restart: "no"
+
+  order-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_FILE: src/OrderService/OrderService.csproj
+        APP_DLL: OrderService.dll
+    depends_on:
+      cosmos-bootstrapper:
+        condition: service_completed_successfully
+    environment:
+      <<: *cosmos-environment
+      ASPNETCORE_ENVIRONMENT: Development
+    ports:
+      - "5080:8080"
+    restart: unless-stopped
+
+  change-feed-processor:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_FILE: src/ChangeFeedProcessor/ChangeFeedProcessor.csproj
+        APP_DLL: ChangeFeedProcessor.dll
+    depends_on:
+      cosmos-bootstrapper:
+        condition: service_completed_successfully
+    environment:
+      <<: *cosmos-environment
+      DOTNET_ENVIRONMENT: Development
+    restart: unless-stopped
+
+  read-model-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_FILE: src/ReadModelService/ReadModelService.csproj
+        APP_DLL: ReadModelService.dll
+    depends_on:
+      cosmos-bootstrapper:
+        condition: service_completed_successfully
+    environment:
+      <<: *cosmos-environment
+      ASPNETCORE_ENVIRONMENT: Development
+    ports:
+      - "5081:8080"
+    restart: unless-stopped
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_FILE: src/NotificationService/NotificationService.csproj
+        APP_DLL: NotificationService.dll
+    depends_on:
+      cosmos-bootstrapper:
+        condition: service_completed_successfully
+    environment:
+      <<: *cosmos-environment
+      ASPNETCORE_ENVIRONMENT: Development
+    ports:
+      - "5082:8080"
+    restart: unless-stopped
+
+  recommendation-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_FILE: src/RecommendationService/RecommendationService.csproj
+        APP_DLL: RecommendationService.dll
+    depends_on:
+      cosmos-bootstrapper:
+        condition: service_completed_successfully
+    environment:
+      <<: *cosmos-environment
+      ASPNETCORE_ENVIRONMENT: Development
+    ports:
+      - "5083:8080"
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_FILE: src/ApiGateway/ApiGateway.csproj
+        APP_DLL: ApiGateway.dll
+    depends_on:
+      order-service:
+        condition: service_started
+      read-model-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+      recommendation-service:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      DownstreamServices__OrderServiceBaseUrl: http://order-service:8080
+      DownstreamServices__ReadModelServiceBaseUrl: http://read-model-service:8080
+      DownstreamServices__NotificationServiceBaseUrl: http://notification-service:8080
+      DownstreamServices__RecommendationServiceBaseUrl: http://recommendation-service:8080
+      Authentication__ApiKey: ${API_GATEWAY_KEY:-}
+    ports:
+      - "5084:8080"
+    restart: unless-stopped
+
+  demo-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_FILE: src/DemoUI/DemoUI.csproj
+        APP_DLL: DemoUI.dll
+    depends_on:
+      api-gateway:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      <<: *cosmos-environment
+      Services__OrderServiceBaseUrl: http://order-service:8080
+      Services__ReadModelServiceBaseUrl: http://read-model-service:8080
+      Services__NotificationServiceBaseUrl: http://notification-service:8080
+      Services__RecommendationServiceBaseUrl: http://recommendation-service:8080
+    ports:
+      - "5085:8080"
+    restart: unless-stopped
+
+volumes:
+  cosmos-emulator-data:

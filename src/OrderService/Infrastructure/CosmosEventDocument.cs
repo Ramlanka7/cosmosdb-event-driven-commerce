@@ -1,6 +1,6 @@
-using System.Text.Json;
-
 namespace OrderService.Infrastructure;
+
+using Newtonsoft.Json.Linq;
 
 internal sealed class CosmosEventDocument
 {
@@ -24,5 +24,5 @@ internal sealed class CosmosEventDocument
 
     public string? causationId { get; init; }
 
-    public required JsonElement payload { get; init; }
+    public required JObject payload { get; init; }
 }

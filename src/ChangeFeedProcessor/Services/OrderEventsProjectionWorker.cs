@@ -76,10 +76,22 @@ internal sealed class OrderEventsProjectionWorker(
                     document.aggregateId,
                     document.sequenceNumber);
 
-                throw;
+                continue;
             }
 
-            await dispatcher.DispatchAsync(document, envelope, cancellationToken);
+            try
+            {
+                await dispatcher.DispatchAsync(document, envelope, cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(
+                    exception,
+                    "Skipping event document {DocumentId} for aggregate {AggregateId} at sequence {SequenceNumber} after projection failure.",
+                    document.id,
+                    document.aggregateId,
+                    document.sequenceNumber);
+            }
         }
     }
 }

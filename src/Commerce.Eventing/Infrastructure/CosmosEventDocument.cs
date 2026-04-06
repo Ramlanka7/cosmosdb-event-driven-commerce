@@ -1,4 +1,4 @@
-using System.Text.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Commerce.Eventing.Infrastructure;
 
@@ -24,5 +24,5 @@ public sealed class CosmosEventDocument
 
     public string? causationId { get; init; }
 
-    public required JsonElement payload { get; init; }
+    public required JObject payload { get; init; }
 }

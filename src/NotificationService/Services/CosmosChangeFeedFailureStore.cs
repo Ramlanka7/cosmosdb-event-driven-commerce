@@ -106,11 +106,10 @@ internal sealed class CosmosChangeFeedFailureStore(
 
     private static string? TryReadUserId(CosmosEventDocument sourceDocument)
     {
-        if (sourceDocument.payload.ValueKind == System.Text.Json.JsonValueKind.Object &&
-            sourceDocument.payload.TryGetProperty("userId", out System.Text.Json.JsonElement userIdElement) &&
-            userIdElement.ValueKind == System.Text.Json.JsonValueKind.String)
+        if (sourceDocument.payload.TryGetValue("userId", StringComparison.OrdinalIgnoreCase, out Newtonsoft.Json.Linq.JToken? userIdToken) &&
+            userIdToken.Type == Newtonsoft.Json.Linq.JTokenType.String)
         {
-            return userIdElement.GetString();
+            return userIdToken.ToString();
         }
 
         return null;

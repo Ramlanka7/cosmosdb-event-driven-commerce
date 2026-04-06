@@ -24,9 +24,23 @@ builder.Services.AddSingleton<IOrderEventDocumentMapper, OrderEventDocumentMappe
 builder.Services.AddSingleton<IOrderEventStore, CosmosOrderEventStore>();
 builder.Services.AddSingleton<IOrderCommandService, OrderCommandService>();
 
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+        policy.AllowAnyOrigin().WithMethods("GET", "POST").AllowAnyHeader());
+});
+
 var app = builder.Build();
 
 app.UseExceptionHandler();
+app.UseCors();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
 app.MapHealthChecks("/health");
 
 RouteGroupBuilder orders = app.MapGroup("/orders");
@@ -144,6 +158,28 @@ static CosmosClient CreateCosmosClient(IServiceProvider serviceProvider)
     {
         clientOptions.ApplicationPreferredRegions = options.PreferredRegions;
     }
+    
+        if (ShouldAllowInsecureCertificate(options.Endpoint))
+        {
+            clientOptions.ConnectionMode = ConnectionMode.Gateway;
+            clientOptions.HttpClientFactory = () => new HttpClient(new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            });
+        }
 
     return new CosmosClient(options.Endpoint, options.Key, clientOptions);
+
+    static bool ShouldAllowInsecureCertificate(string endpoint)
+    {
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out Uri? endpointUri))
+        {
+            return false;
+        }
+
+        return endpointUri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+               || endpointUri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
+             || endpointUri.Host.Equals("host.docker.internal", StringComparison.OrdinalIgnoreCase)
+             || endpointUri.Host.Equals("cosmos-emulator", StringComparison.OrdinalIgnoreCase);
+    }
 }

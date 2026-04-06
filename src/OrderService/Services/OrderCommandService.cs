@@ -25,7 +25,7 @@ internal sealed class OrderCommandService(IOrderEventStore orderEventStore) : IO
             orderId,
             expectedVersion: 0,
             created,
-            BuildMetadata(request.CorrelationId, request.CorrelationId),
+            BuildMetadata(request.CorrelationId, null),
             cancellationToken);
 
         return new OrderCommandResponse(orderId, OrderStatus.Pending.ToString(), storedEvent.SequenceNumber, storedEvent.OccurredAtUtc);

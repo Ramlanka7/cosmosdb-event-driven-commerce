@@ -44,14 +44,16 @@ internal sealed class CosmosNotificationStore(
     public async Task<IReadOnlyCollection<NotificationDocument>> ListAsync(string userId, CancellationToken cancellationToken)
     {
         QueryDefinition query = new QueryDefinition(
-            "SELECT * FROM c WHERE c.documentType = @documentType AND c.userId = @userId ORDER BY c.occurredAtUtc DESC")
+            "SELECT TOP @maxItems * FROM c WHERE c.documentType = @documentType AND c.userId = @userId ORDER BY c.occurredAtUtc DESC")
             .WithParameter("@documentType", "notification")
-            .WithParameter("@userId", userId);
+            .WithParameter("@userId", userId)
+            .WithParameter("@maxItems", 100);
 
         QueryRequestOptions requestOptions = new()
         {
             PartitionKey = new PartitionKey(userId),
-            MaxConcurrency = 1
+            MaxConcurrency = 1,
+            MaxItemCount = 100
         };
 
         using FeedIterator<NotificationDocument> iterator = GetContainer()

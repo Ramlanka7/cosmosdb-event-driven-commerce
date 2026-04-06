@@ -104,6 +104,51 @@ The workspace now includes `.vscode/tasks.json` with two entrypoints:
 - `bootstrap-cosmos` provisions the local emulator database and containers
 - `bootstrap-and-start-commerce-platform` provisions Cosmos DB and then starts all long-running services with the standardized `http` launch profile
 
+## Run Everything With Docker Compose
+
+If you prefer one command instead of running each service manually, you can run the entire platform with Docker Compose.
+
+### Why Order Service Failed To Start
+
+The `OrderService` startup validation requires `CosmosDb:Endpoint` and `CosmosDb:Key`. If those settings are empty, startup fails with:
+
+- `CosmosDb:Endpoint is required.`
+- `CosmosDb:Key is required.`
+
+### Docker Compose Setup
+
+1. Copy `.env.example` to `.env`.
+2. In `portal.azure.com`, open your Cosmos DB account and copy:
+	- URI into `COSMOS_DB_ENDPOINT`
+	- Primary key (or secondary key) into `COSMOS_DB_KEY`
+3. Set those values in `.env`.
+4. Run:
+
+```bash
+docker compose up --build
+```
+
+The compose stack will:
+
+- run `CosmosBootstrapper` first to provision required containers
+- start all backend services and the API gateway
+- expose the same local ports used by the non-container flow
+
+### Exposed Ports
+
+- `OrderService`: `http://localhost:5080`
+- `ReadModelService`: `http://localhost:5081`
+- `NotificationService`: `http://localhost:5082`
+- `RecommendationService`: `http://localhost:5083`
+- `ApiGateway`: `http://localhost:5084`
+- `DemoUI`: `http://localhost:5085`
+
+### Notes
+
+- The default docker compose path now targets Azure Cosmos DB values from `.env`, so writes are visible in Azure Data Explorer.
+- To run the local emulator container instead, use `docker compose --profile emulator up --build` and set `COSMOS_DB_ENDPOINT=https://cosmos-emulator:8081/` with the emulator key.
+- After creating orders, verify data in `portal.azure.com` under Cosmos DB account > Data Explorer > `commerce-platform` database.
+
 ## Local Development Standard
 
 The repository now has a deterministic local-first setup flow built around the Azure Cosmos DB Emulator.
@@ -117,7 +162,8 @@ The repository now has a deterministic local-first setup flow built around the A
 
 ### Configuration Rules
 
-- The checked-in defaults target the local Azure Cosmos DB Emulator and the shared `commerce-platform` database
+- Docker compose now expects explicit Cosmos account settings in `.env`; use Azure account values for cloud-backed runs
+- For local emulator runs, provide emulator endpoint and key in `.env` (or use local appsettings and environment overrides)
 - Cloud credentials must be supplied through environment variables or gitignored `appsettings.Development.json` files, not committed settings
 - Standard .NET configuration overrides are supported, for example `CosmosDb__Endpoint` and `CosmosDb__Key`
 
