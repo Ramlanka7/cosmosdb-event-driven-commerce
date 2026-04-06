@@ -43,8 +43,8 @@ This project shows how to use Cosmos DB as:
 
 ## 1. Order Service
 
-* Handles order creation
-* Writes events to Cosmos DB
+* Handles order commands
+* Writes append-only events to Cosmos DB
 
 ## 2. Change Feed Processor
 
@@ -58,11 +58,11 @@ This project shows how to use Cosmos DB as:
 
 ## 4. Notification Service
 
-* Sends emails/SMS (future extensible)
+* Records and exposes deduplicated notification messages
 
 ## 5. Recommendation Service
 
-* Generates personalized suggestions
+* Generates deterministic SKU suggestions from prior orders
 
 ## 6. API Gateway
 
@@ -75,7 +75,9 @@ This project shows how to use Cosmos DB as:
 | Container       | Purpose         | Partition Key |
 | --------------- | --------------- | ------------- |
 | order-events    | Event store     | /aggregateId  |
+| change-feed-leases | Change feed coordination | /id |
 | orders-read     | Read model      | /userId       |
+| notifications   | Notification log | /userId      |
 | users           | Profiles        | /userId       |
 | recommendations | Personalization | /userId       |
 
@@ -108,9 +110,9 @@ This project shows how to use Cosmos DB as:
 
 # 💻 Tech Stack
 
-* .NET 8 Web API
+* .NET 8 Web API / Worker Services
 * Azure Cosmos DB
-* Azure Functions / Background सेवices
+* Background services driven by Cosmos DB Change Feed
 * Docker (optional)
 
 ---
@@ -119,7 +121,7 @@ This project shows how to use Cosmos DB as:
 
 ## Prerequisites
 
-* .NET 8 SDK
+* .NET SDK 8.0 or later
 * Azure Cosmos DB account (or Emulator)
 * Docker (optional)
 
@@ -128,13 +130,20 @@ This project shows how to use Cosmos DB as:
 ## Setup Steps
 
 1. Clone the repository
-2. Configure Cosmos DB connection in `appsettings.json`
-3. Create required containers
-4. Run services:
+2. Run `verify-local-environment` to catch missing local prerequisites early
+3. Run the bootstrapper to create the required containers
+4. Configure per-service settings only if you are not using the local emulator defaults
+5. Run services:
 
 ```bash
-cd src/OrderService
- dotnet run
+powershell -ExecutionPolicy Bypass -File scripts/Test-LocalEnvironment.ps1
+dotnet run --project src/CosmosBootstrapper
+dotnet run --project src/OrderService
+dotnet run --project src/ChangeFeedProcessor
+dotnet run --project src/ReadModelService
+dotnet run --project src/NotificationService
+dotnet run --project src/RecommendationService
+dotnet run --project src/ApiGateway
 ```
 
 ---

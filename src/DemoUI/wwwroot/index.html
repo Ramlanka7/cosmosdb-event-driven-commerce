@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Commerce Platform Demo</title>
+    <style>
+        :root {
+            --primary: #0078d4;
+            --primary-dark: #005a9e;
+            --success: #107c10;
+            --danger: #d13438;
+            --warning: #ffb900;
+            --bg: #f3f2f1;
+            --card: #ffffff;
+            --text: #323130;
+            --text-muted: #605e5c;
+            --border: #edebe9;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); }
+
+        /* Navigation */
+        nav { background: var(--primary); color: #fff; padding: 0 24px; display: flex; align-items: center; height: 48px; gap: 32px; }
+        nav h1 { font-size: 16px; font-weight: 600; white-space: nowrap; }
+        nav a { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 14px; padding: 12px 4px; border-bottom: 2px solid transparent; transition: all 0.15s; }
+        nav a:hover, nav a.active { color: #fff; border-bottom-color: #fff; }
+
+        /* Layout */
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        .page { display: none; }
+        .page.active { display: block; }
+
+        /* Cards */
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1.6px 3.6px rgba(0,0,0,0.06); }
+        .card h2 { font-size: 18px; margin-bottom: 16px; color: var(--primary); }
+        .card h3 { font-size: 15px; margin-bottom: 12px; color: var(--text); }
+
+        /* Forms */
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text-muted); }
+        .form-group input, .form-group select { width: 100%; padding: 8px 12px; border: 1px solid #c8c6c4; border-radius: 4px; font-size: 14px; }
+        .form-group input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+
+        /* Buttons */
+        .btn { padding: 8px 20px; border: none; border-radius: 4px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-success:hover { background: #0b5e0b; }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-danger:hover { background: #a4262c; }
+        .btn-sm { padding: 4px 12px; font-size: 12px; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Grid */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+
+        /* Items */
+        .item-row { display: flex; gap: 8px; align-items: end; margin-bottom: 8px; }
+        .item-row .form-group { margin-bottom: 0; flex: 1; }
+        .items-list { margin-bottom: 12px; }
+
+        /* Table */
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; font-weight: 600; padding: 8px 12px; background: var(--bg); border-bottom: 2px solid var(--border); color: var(--text-muted); }
+        td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+        tr:hover { background: #f8f8f8; }
+
+        /* Status badges */
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .badge-pending { background: #fff4ce; color: #8a6914; }
+        .badge-confirmed { background: #dff6dd; color: #107c10; }
+        .badge-failed { background: #fed9cc; color: #d13438; }
+
+        /* Counts bar */
+        .counts-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+        .count-chip { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; text-align: center; min-width: 140px; }
+        .count-chip .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .count-chip .value { font-size: 24px; font-weight: 700; color: var(--primary); margin-top: 2px; }
+
+        /* Toast */
+        .toast-container { position: fixed; top: 60px; right: 24px; z-index: 1000; }
+        .toast { padding: 12px 20px; border-radius: 4px; margin-bottom: 8px; font-size: 13px; color: #fff; animation: slideIn 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .toast-success { background: var(--success); }
+        .toast-error { background: var(--danger); }
+        .toast-info { background: var(--primary); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* JSON viewer */
+        .json-view { background: #1e1e1e; color: #d4d4d4; padding: 12px; border-radius: 4px; font-family: 'Cascadia Code', Consolas, monospace; font-size: 12px; max-height: 400px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+
+        /* Loading spinner */
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(0,0,0,0.1); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.6s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Auto-refresh toggle */
+        .refresh-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .refresh-bar label { font-size: 13px; cursor: pointer; }
+        .toggle { position: relative; width: 40px; height: 20px; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle .slider { position: absolute; inset: 0; background: #c8c6c4; border-radius: 10px; cursor: pointer; transition: background 0.2s; }
+        .toggle .slider::before { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: transform 0.2s; }
+        .toggle input:checked + .slider { background: var(--primary); }
+        .toggle input:checked + .slider::before { transform: translateX(20px); }
+
+        /* Tab styles for changefeed page */
+        .tabs { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 16px; gap: 0; }
+        .tab-btn { padding: 10px 20px; border: none; background: none; font-size: 14px; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <h1>🛒 Commerce Platform</h1>
+    <a href="#" data-page="orders" class="active">Create Order</a>
+    <a href="#" data-page="query">Query Data</a>
+    <a href="#" data-page="changefeed">Change Feed Monitor</a>
+</nav>
+
+<div class="toast-container" id="toasts"></div>
+
+<div class="container">
+
+    <!-- PAGE: CREATE ORDER -->
+    <div class="page active" id="page-orders">
+        <div class="grid-2">
+            <div class="card">
+                <h2>Create New Order</h2>
+                <form id="createOrderForm">
+                    <div class="form-group">
+                        <label>User ID</label>
+                        <input type="text" id="userId" value="user-123" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Correlation ID (optional)</label>
+                        <input type="text" id="correlationId" placeholder="auto-generated if empty" />
+                    </div>
+                    <h3>Order Items</h3>
+                    <div id="itemsList" class="items-list"></div>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="addItem()">+ Add Item</button>
+                    <br/><br/>
+                    <button type="submit" class="btn btn-primary" id="btnCreateOrder">Create Order</button>
+                </form>
+                <div id="createResult" style="margin-top: 16px;"></div>
+            </div>
+
+            <div class="card">
+                <h2>Confirm Order</h2>
+                <form id="confirmOrderForm">
+                    <div class="form-group">
+                        <label>Order ID</label>
+                        <input type="text" id="confirmOrderId" placeholder="paste order ID from create result" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Correlation ID (optional)</label>
+                        <input type="text" id="confirmCorrelationId" />
+                    </div>
+                    <button type="submit" class="btn btn-success" id="btnConfirmOrder">Confirm Order</button>
+                </form>
+                <div id="confirmResult" style="margin-top: 16px;"></div>
+
+                <hr style="margin: 24px 0; border: none; border-top: 1px solid var(--border);" />
+
+                <h2>View Event Stream</h2>
+                <form id="eventsForm">
+                    <div class="form-group">
+                        <label>Order ID</label>
+                        <input type="text" id="eventsOrderId" placeholder="order ID" required />
+                    </div>
+                    <button type="submit" class="btn btn-primary">Load Events</button>
+                </form>
+                <div id="eventsResult" style="margin-top: 16px;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Recent Orders Created</h2>
+            <table>
+                <thead>
+                    <tr><th>Order ID</th><th>Status</th><th>Time</th><th>Action</th></tr>
+                </thead>
+                <tbody id="recentOrders"></tbody>
+            </table>
+            <p id="noOrders" style="color:var(--text-muted); font-size:13px; padding:8px;">Orders you create will appear here.</p>
+        </div>
+    </div>
+
+    <!-- PAGE: QUERY DATA -->
+    <div class="page" id="page-query">
+        <div class="grid-2">
+            <div class="card">
+                <h2>Query Orders (Read Model)</h2>
+                <div class="form-group">
+                    <label>User ID</label>
+                    <input type="text" id="queryUserId" value="user-123" />
+                </div>
+                <button class="btn btn-primary" onclick="queryOrders()">Load Orders</button>
+                <div id="queryOrdersResult" style="margin-top: 16px;"></div>
+            </div>
+            <div class="card">
+                <h2>Notifications</h2>
+                <div class="form-group">
+                    <label>User ID</label>
+                    <input type="text" id="notifUserId" value="user-123" />
+                </div>
+                <button class="btn btn-primary" onclick="queryNotifications()">Load Notifications</button>
+                <div id="queryNotifResult" style="margin-top: 16px;"></div>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Recommendations</h2>
+            <div class="form-group" style="max-width:300px;">
+                <label>User ID</label>
+                <input type="text" id="recoUserId" value="user-123" />
+            </div>
+            <button class="btn btn-primary" onclick="queryRecommendations()">Load Recommendations</button>
+            <div id="queryRecoResult" style="margin-top: 16px;"></div>
+        </div>
+    </div>
+
+    <!-- PAGE: CHANGE FEED MONITOR -->
+    <div class="page" id="page-changefeed">
+        <div class="refresh-bar">
+            <label class="toggle">
+                <input type="checkbox" id="autoRefresh" checked />
+                <span class="slider"></span>
+            </label>
+            <label for="autoRefresh">Auto-refresh every 5s</label>
+            <button class="btn btn-sm btn-primary" onclick="refreshChangeFeed()">Refresh Now</button>
+            <span id="lastRefresh" style="font-size:12px; color:var(--text-muted);"></span>
+        </div>
+
+        <div class="counts-bar" id="countsBar"></div>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="tab-summaries">Order Summaries</button>
+            <button class="tab-btn" data-tab="tab-notifications">Notifications</button>
+            <button class="tab-btn" data-tab="tab-recommendations">Recommendations</button>
+            <button class="tab-btn" data-tab="tab-failures">Failures</button>
+        </div>
+
+        <div class="tab-content active" id="tab-summaries">
+            <table>
+                <thead>
+                    <tr><th>Order ID</th><th>User</th><th>Status</th><th>Total</th><th>Items</th><th>Last Updated</th><th>Seq #</th></tr>
+                </thead>
+                <tbody id="cfSummaries"></tbody>
+            </table>
+        </div>
+        <div class="tab-content" id="tab-notifications">
+            <table>
+                <thead>
+                    <tr><th>User</th><th>Order</th><th>Type</th><th>Message</th><th>Time</th><th>Seq #</th></tr>
+                </thead>
+                <tbody id="cfNotifications"></tbody>
+            </table>
+        </div>
+        <div class="tab-content" id="tab-recommendations">
+            <table>
+                <thead>
+                    <tr><th>User</th><th>Suggested SKUs</th><th>Last Refreshed</th><th>Projection Ver</th><th>Checkpoints</th></tr>
+                </thead>
+                <tbody id="cfRecommendations"></tbody>
+            </table>
+        </div>
+        <div class="tab-content" id="tab-failures">
+            <table>
+                <thead>
+                    <tr><th>Handler</th><th>Aggregate</th><th>Event Type</th><th>Count</th><th>Last Error</th><th>Last Failed</th></tr>
+                </thead>
+                <tbody id="cfFailures"></tbody>
+            </table>
+            <p id="noFailures" style="color:var(--success); font-size:13px; padding:8px;">✓ No failures recorded.</p>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const ORDER_SERVICE = 'http://localhost:5080';
+const READ_SERVICE = 'http://localhost:5081';
+const NOTIF_SERVICE = 'http://localhost:5082';
+const RECO_SERVICE = 'http://localhost:5083';
+
+let recentOrdersList = [];
+let autoRefreshTimer = null;
+
+// ============ NAVIGATION ============
+document.querySelectorAll('nav a').forEach(link => {
+    link.addEventListener('click', e => {
+        e.preventDefault();
+        document.querySelectorAll('nav a').forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('page-' + link.dataset.page).classList.add('active');
+        if (link.dataset.page === 'changefeed') startAutoRefresh();
+        else stopAutoRefresh();
+    });
+});
+
+// Tabs
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+});
+
+// ============ TOAST ============
+function toast(message, type = 'info') {
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.textContent = message;
+    document.getElementById('toasts').appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+}
+
+// ============ ORDER ITEMS ============
+let itemCounter = 0;
+function addItem(sku = '', qty = 1, price = '') {
+    itemCounter++;
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    div.id = 'item-' + itemCounter;
+    div.innerHTML = `
+        <div class="form-group"><label>SKU</label><input type="text" class="itemSku" value="${sku}" placeholder="e.g. sku-${itemCounter}" required /></div>
+        <div class="form-group"><label>Qty</label><input type="number" class="itemQty" value="${qty}" min="1" required /></div>
+        <div class="form-group"><label>Unit Price</label><input type="number" class="itemPrice" step="0.01" value="${price}" placeholder="9.99" required /></div>
+        <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">✕</button>
+    `;
+    document.getElementById('itemsList').appendChild(div);
+}
+// Start with one item
+addItem('sku-1', 1, '24.99');
+
+// ============ CREATE ORDER ============
+document.getElementById('createOrderForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('btnCreateOrder');
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+    try {
+        const items = [];
+        document.querySelectorAll('.item-row').forEach(row => {
+            items.push({
+                sku: row.querySelector('.itemSku').value,
+                quantity: parseInt(row.querySelector('.itemQty').value),
+                unitPrice: parseFloat(row.querySelector('.itemPrice').value)
+            });
+        });
+        const body = {
+            userId: document.getElementById('userId').value,
+            items: items
+        };
+        const cid = document.getElementById('correlationId').value;
+        if (cid) body.correlationId = cid;
+
+        const res = await fetch(`${ORDER_SERVICE}/orders`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (res.ok) {
+            toast('Order created: ' + data.orderId, 'success');
+            document.getElementById('createResult').innerHTML = `<div class="json-view">${JSON.stringify(data, null, 2)}</div>`;
+            document.getElementById('confirmOrderId').value = data.orderId;
+            document.getElementById('eventsOrderId').value = data.orderId;
+            recentOrdersList.unshift({ orderId: data.orderId, status: data.status, time: data.occurredAtUtc });
+            renderRecentOrders();
+        } else {
+            toast('Error: ' + (data.title || res.statusText), 'error');
+            document.getElementById('createResult').innerHTML = `<div class="json-view">${JSON.stringify(data, null, 2)}</div>`;
+        }
+    } catch (err) {
+        toast('Request failed: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Order';
+    }
+});
+
+// ============ CONFIRM ORDER ============
+document.getElementById('confirmOrderForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('btnConfirmOrder');
+    btn.disabled = true;
+    btn.textContent = 'Confirming...';
+    try {
+        const orderId = document.getElementById('confirmOrderId').value;
+        const body = {};
+        const cid = document.getElementById('confirmCorrelationId').value;
+        if (cid) body.correlationId = cid;
+
+        const res = await fetch(`${ORDER_SERVICE}/orders/${encodeURIComponent(orderId)}/confirm`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (res.ok) {
+            toast('Order confirmed: ' + data.orderId, 'success');
+            document.getElementById('confirmResult').innerHTML = `<div class="json-view">${JSON.stringify(data, null, 2)}</div>`;
+            const existing = recentOrdersList.find(o => o.orderId === data.orderId);
+            if (existing) existing.status = data.status;
+            renderRecentOrders();
+        } else {
+            toast('Error: ' + (data.title || res.statusText), 'error');
+            document.getElementById('confirmResult').innerHTML = `<div class="json-view">${JSON.stringify(data, null, 2)}</div>`;
+        }
+    } catch (err) {
+        toast('Request failed: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Confirm Order';
+    }
+});
+
+// ============ VIEW EVENTS ============
+document.getElementById('eventsForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    try {
+        const orderId = document.getElementById('eventsOrderId').value;
+        const res = await fetch(`${ORDER_SERVICE}/orders/${encodeURIComponent(orderId)}/events`);
+        const data = await res.json();
+        document.getElementById('eventsResult').innerHTML = `<div class="json-view">${JSON.stringify(data, null, 2)}</div>`;
+    } catch (err) {
+        toast('Request failed: ' + err.message, 'error');
+    }
+});
+
+// ============ RECENT ORDERS TABLE ============
+function renderRecentOrders() {
+    const tbody = document.getElementById('recentOrders');
+    const noOrders = document.getElementById('noOrders');
+    if (recentOrdersList.length === 0) { noOrders.style.display = 'block'; tbody.innerHTML = ''; return; }
+    noOrders.style.display = 'none';
+    tbody.innerHTML = recentOrdersList.map(o => `
+        <tr>
+            <td><code>${o.orderId}</code></td>
+            <td><span class="badge badge-${o.status?.toLowerCase() === 'confirmed' ? 'confirmed' : 'pending'}">${o.status}</span></td>
+            <td>${new Date(o.time).toLocaleTimeString()}</td>
+            <td>
+                <button class="btn btn-sm btn-success" onclick="quickConfirm('${o.orderId}')" ${o.status === 'Confirmed' ? 'disabled' : ''}>Confirm</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function quickConfirm(orderId) {
+    try {
+        const res = await fetch(`${ORDER_SERVICE}/orders/${encodeURIComponent(orderId)}/confirm`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}'
+        });
+        const data = await res.json();
+        if (res.ok) {
+            toast('Order confirmed: ' + orderId, 'success');
+            const existing = recentOrdersList.find(o => o.orderId === orderId);
+            if (existing) existing.status = data.status;
+            renderRecentOrders();
+        } else {
+            toast('Error: ' + (data.title || res.statusText), 'error');
+        }
+    } catch (err) {
+        toast('Confirm failed: ' + err.message, 'error');
+    }
+}
+
+// ============ QUERY PAGE ============
+async function queryOrders() {
+    try {
+        const userId = document.getElementById('queryUserId').value;
+        const res = await fetch(`${READ_SERVICE}/users/${encodeURIComponent(userId)}/orders`);
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+            document.getElementById('queryOrdersResult').innerHTML = `
+                <table><thead><tr><th>Order</th><th>Status</th><th>Total</th><th>Created</th></tr></thead><tbody>
+                ${data.map(o => `<tr><td><code>${o.orderId}</code></td><td><span class="badge badge-${o.status?.toLowerCase() === 'confirmed' ? 'confirmed' : 'pending'}">${o.status}</span></td><td>$${o.totalAmount?.toFixed(2)}</td><td>${new Date(o.createdAtUtc).toLocaleString()}</td></tr>`).join('')}
+                </tbody></table>`;
+        } else {
+            document.getElementById('queryOrdersResult').innerHTML = '<p style="color:var(--text-muted)">No orders found for this user.</p>';
+        }
+    } catch (err) { toast('Query failed: ' + err.message, 'error'); }
+}
+
+async function queryNotifications() {
+    try {
+        const userId = document.getElementById('notifUserId').value;
+        const res = await fetch(`${NOTIF_SERVICE}/users/${encodeURIComponent(userId)}/notifications`);
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+            document.getElementById('queryNotifResult').innerHTML = `
+                <table><thead><tr><th>Type</th><th>Message</th><th>Order</th><th>Time</th></tr></thead><tbody>
+                ${data.map(n => `<tr><td>${n.notificationType}</td><td>${n.message}</td><td><code>${n.orderId}</code></td><td>${new Date(n.occurredAtUtc).toLocaleString()}</td></tr>`).join('')}
+                </tbody></table>`;
+        } else {
+            document.getElementById('queryNotifResult').innerHTML = '<p style="color:var(--text-muted)">No notifications found.</p>';
+        }
+    } catch (err) { toast('Query failed: ' + err.message, 'error'); }
+}
+
+async function queryRecommendations() {
+    try {
+        const userId = document.getElementById('recoUserId').value;
+        const res = await fetch(`${RECO_SERVICE}/users/${encodeURIComponent(userId)}/recommendations`);
+        if (res.status === 404) {
+            document.getElementById('queryRecoResult').innerHTML = '<p style="color:var(--text-muted)">No recommendations found for this user yet.</p>';
+            return;
+        }
+        const data = await res.json();
+        const suggestions = Array.isArray(data.suggestions)
+            ? data.suggestions
+            : (Array.isArray(data.suggestedSkus) ? data.suggestedSkus : []);
+
+        if (suggestions.length > 0) {
+            document.getElementById('queryRecoResult').innerHTML = `
+                <table><thead><tr><th>SKU</th><th>Score</th><th>Reason</th></tr></thead><tbody>
+                ${suggestions.map(s => `<tr><td><code>${s.sku}</code></td><td>${s.score?.toFixed(2)}</td><td>${s.reason}</td></tr>`).join('')}
+                </tbody></table>`;
+        } else {
+            document.getElementById('queryRecoResult').innerHTML = '<p style="color:var(--text-muted)">No recommendations generated yet.</p>';
+        }
+    } catch (err) { toast('Query failed: ' + err.message, 'error'); }
+}
+
+// ============ CHANGE FEED MONITOR ============
+async function refreshChangeFeed() {
+    try {
+        const [statusRes, countsRes] = await Promise.all([
+            fetch('/api/changefeed/status'),
+            fetch('/api/changefeed/counts')
+        ]);
+        const status = await statusRes.json();
+        const counts = await countsRes.json();
+
+        document.getElementById('lastRefresh').textContent = 'Last: ' + new Date().toLocaleTimeString();
+
+        // Counts bar
+        const countsBar = document.getElementById('countsBar');
+        countsBar.innerHTML = Object.entries(counts).map(([name, count]) => `
+            <div class="count-chip">
+                <div class="label">${name}</div>
+                <div class="value">${count >= 0 ? count : '⚠️'}</div>
+            </div>
+        `).join('');
+
+        // Order summaries
+        renderCfTable('cfSummaries', status.orderSummaries, row => `
+            <td><code>${row.orderId || ''}</code></td>
+            <td>${row.userId || ''}</td>
+            <td><span class="badge badge-${row.status?.toLowerCase() === 'confirmed' ? 'confirmed' : 'pending'}">${row.status || ''}</span></td>
+            <td>$${(row.totalAmount || 0).toFixed(2)}</td>
+            <td>${(row.items || []).map(i => `${i.sku}×${i.quantity}`).join(', ')}</td>
+            <td>${row.lastUpdatedAtUtc ? new Date(row.lastUpdatedAtUtc).toLocaleString() : ''}</td>
+            <td>${row.lastProcessedSequenceNumber ?? ''}</td>
+        `);
+
+        // Notifications
+        renderCfTable('cfNotifications', status.notifications, row => `
+            <td>${row.userId || ''}</td>
+            <td><code>${row.orderId || ''}</code></td>
+            <td>${row.notificationType || ''}</td>
+            <td>${row.message || ''}</td>
+            <td>${row.occurredAtUtc ? new Date(row.occurredAtUtc).toLocaleString() : ''}</td>
+            <td>${row.sourceEventSequenceNumber ?? ''}</td>
+        `);
+
+        // Recommendations
+        renderCfTable('cfRecommendations', status.recommendations, row => `
+            <td>${row.userId || ''}</td>
+            <td>${(row.suggestedSkus || []).map(s => `<code>${s.sku}</code> (${s.score?.toFixed(1)})`).join(', ') || 'None'}</td>
+            <td>${row.lastRefreshedAtUtc ? new Date(row.lastRefreshedAtUtc).toLocaleString() : ''}</td>
+            <td>${row.projectionVersion ?? ''}</td>
+            <td style="font-size:11px;">${row.streamCheckpoints ? Object.entries(row.streamCheckpoints).map(([k,v]) => `${k.substring(0,8)}…:${v}`).join(', ') : ''}</td>
+        `);
+
+        // Failures
+        const failuresTbody = document.getElementById('cfFailures');
+        const noFailures = document.getElementById('noFailures');
+        if (status.failures && status.failures.length > 0) {
+            noFailures.style.display = 'none';
+            renderCfTable('cfFailures', status.failures, row => `
+                <td>${row.handlerName || ''}</td>
+                <td><code>${row.aggregateId || ''}</code></td>
+                <td>${row.eventType || ''}</td>
+                <td><span class="badge badge-failed">${row.failureCount || 0}</span></td>
+                <td title="${row.lastErrorMessage || ''}">${(row.lastErrorMessage || '').substring(0, 80)}</td>
+                <td>${row.lastFailedAtUtc ? new Date(row.lastFailedAtUtc).toLocaleString() : ''}</td>
+            `);
+        } else {
+            failuresTbody.innerHTML = '';
+            noFailures.style.display = 'block';
+        }
+    } catch (err) {
+        console.error('Change feed refresh failed:', err);
+    }
+}
+
+function renderCfTable(tbodyId, items, rowFn) {
+    const tbody = document.getElementById(tbodyId);
+    if (!items || items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="color:var(--text-muted); text-align:center;">No data yet</td></tr>';
+        return;
+    }
+    tbody.innerHTML = items.map(row => `<tr>${rowFn(row)}</tr>`).join('');
+}
+
+// Auto-refresh
+function startAutoRefresh() {
+    refreshChangeFeed();
+    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+    if (document.getElementById('autoRefresh').checked) {
+        autoRefreshTimer = setInterval(refreshChangeFeed, 5000);
+    }
+}
+function stopAutoRefresh() {
+    if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+}
+document.getElementById('autoRefresh').addEventListener('change', () => {
+    if (document.getElementById('autoRefresh').checked) startAutoRefresh();
+    else stopAutoRefresh();
+});
+</script>
+
+</body>
+</html>
